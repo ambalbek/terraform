@@ -155,6 +155,7 @@ resource "aws_instance" "ec2-in-new-vpc" {
   instance_type          = "t2.micro"
   subnet_id              = aws_subnet.My_VPC_Subnet.id # list
   vpc_security_group_ids = ["${aws_security_group.aziz-sg.id}"]
+  iam_instance_profile = "jenkins"
   key_name = "virginia"
   count = 1
   user_data = <<-EOF
@@ -165,9 +166,10 @@ resource "aws_instance" "ec2-in-new-vpc" {
                 sudo chkconfig httpd on
                 sudo service httpd start
                 sudo echo "<h1>Salam Dunya!</h1>" > /var/www/html/index.html
+                
                 EOF
 
     tags = {
-        Name = "from terraform"
+        Name = "from terraform.${count.index+1}"
     }
 }
