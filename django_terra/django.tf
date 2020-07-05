@@ -22,7 +22,7 @@ resource "aws_instance" "example" {
                 mkdir django
                 cd django
                 aws s3 sync s3://akmana/ /home/ec2-user/django
-                python3 manage.py runserver self.public_ip:8000
+                python3 manage.py runserver
                 EOF
 
     tags = {
