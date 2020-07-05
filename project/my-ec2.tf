@@ -3,6 +3,7 @@ provider "aws" {
 }
 resource "aws_instance" "example" {
     ami = "ami-09d95fab7fff3776c"
+    iam_instance_profile = "jenkins"
     instance_type = "t2.micro"
     key_name = "virginia"
     count = 5
