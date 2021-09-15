@@ -1,101 +1,95 @@
-resource "aws_vpc" "QAD-slalom" {
-  cidr_block = "10.20.8.0/22"
-
+/*==== The VPC ======*/
+resource "aws_vpc" "client-vpc" {
+  cidr_block           = "${var.vpc_cidr_block}"
+  enable_dns_hostnames = true
+  enable_dns_support   = true
   tags = {
-    Name        = "QAD-slalom"    
+    Name        = "client-vpc"
+    
   }
 }
-
-
-resource "aws_subnet" "public_subnet" {
-  count = "${length(var.public_subnet_cidr_block)}"
-
-  vpc_id     = "${aws_vpc.QAD-slalom.id}"
-  cidr_block = "${element(var.public_subnet_cidr_block, count.index)}"
-
-  availability_zone = "${element(var.availability_zones, count.index)}"
-
+/*==== Subnets ======*/
+/* Internet gateway for the public subnet */
+resource "aws_internet_gateway" "ig" {
+  vpc_id = "${aws_vpc.client-vpc.id}"
   tags = {
-    Name = "QAD_public_subnet_${count.index+1} "
+    Name        = "client-vpc-igw"
+    
   }
 }
-
-resource "aws_subnet" "private_subnet" {
-  count = "${length(var.private_subnet_cidr_block)}"
-
-  vpc_id     = "${aws_vpc.QAD-slalom.id}"
-  cidr_block = "${element(var.private_subnet_cidr_block, count.index)}"
-
-  availability_zone = "${element(var.availability_zones, count.index)}"
-
-  tags = {
-    Name = "QAD_private_subnet_${count.index+1}"
-  }
-}
-
-
-# Internet Gateway
-resource "aws_internet_gateway" "igw" {
-  vpc_id = "${aws_vpc.QAD-slalom.id}"
-  tags = {
-    Name="QAD_GW"
-  }
-}
-
-# EIP and NAT Gateway
+/* Elastic IP for NAT */
 resource "aws_eip" "nat_eip" {
-  vpc = true
-  tags = {
-    Name="QAD_EIP_for_NAT_GW"
-  }
+  vpc        = true
+  depends_on = [aws_internet_gateway.ig]
 }
-# Nat_GW
-resource "aws_nat_gateway" "natgw" {
+/* NAT */
+resource "aws_nat_gateway" "nat" {
   allocation_id = "${aws_eip.nat_eip.id}"
-  subnet_id     = "${element(aws_subnet.public_subnet.*.id, 1)}"
-
-  depends_on = [aws_internet_gateway.igw]
+  subnet_id     = "${element(aws_subnet.public_subnet.*.id, 0)}"
+  depends_on    = [aws_internet_gateway.ig]
   tags = {
-    Name="QAD_natgw"
+    Name        = "client-vpc-nat"
+    
   }
 }
-
-# Public Route Table
-resource "aws_route_table" "public_route_table" {
-  vpc_id = "${aws_vpc.QAD-slalom.id}"
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = "${aws_internet_gateway.igw.id}"
-  }
+/* Public subnet */
+resource "aws_subnet" "public_subnet" {
+  vpc_id                  = "${aws_vpc.client-vpc.id}"
+  count                   = "${length(var.availability_zones)}"
+  cidr_block              = "${cidrsubnet(var.vpc_cidr_block, 3, count.index)}"
+  availability_zone       = "${element(var.availability_zones,   count.index)}"
+  map_public_ip_on_launch = true
   tags = {
-    Name="QAD_RT"
+    Name        = "client-vpc-${element(var.availability_zones, count.index)}-public-subnet"
+    
   }
 }
-
-resource "aws_route_table_association" "public_rt_association" {
-  count = "${length(aws_subnet.public_subnet.*.id)}"
-
+/* Private subnet */
+resource "aws_subnet" "private_subnet" {
+  vpc_id                  = "${aws_vpc.client-vpc.id}"
+  count                   = "${length(var.availability_zones)}"
+  cidr_block              = "${cidrsubnet(var.vpc_cidr_block, 3, count.index +3)}"
+  availability_zone       = "${element(var.availability_zones,   count.index)}"
+  map_public_ip_on_launch = false
+  tags = {
+    Name        = "client-vpc-${element(var.availability_zones, count.index)}-private-subnet"
+    
+  }
+} 
+/* Routing table for private subnet */
+resource "aws_route_table" "private" {
+  vpc_id = "${aws_vpc.client-vpc.id}"
+  tags = {
+    Name        = "client-vpc-private-route-table"
+    
+  }
+}
+/* Routing table for public subnet */
+resource "aws_route_table" "public" {
+  vpc_id = "${aws_vpc.client-vpc.id}"
+  tags = {
+    Name        = "client-vpc-public-route-table"
+    
+  }
+}
+resource "aws_route" "public_internet_gateway" {
+  route_table_id         = "${aws_route_table.public.id}"
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = "${aws_internet_gateway.ig.id}"
+}
+resource "aws_route" "private_nat_gateway" {
+  route_table_id         = "${aws_route_table.private.id}"
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = "${aws_nat_gateway.nat.id}"
+}
+/* Route table associations */
+resource "aws_route_table_association" "public" {
+  count          = "${length(var.vpc_cidr_block)}"
   subnet_id      = "${element(aws_subnet.public_subnet.*.id, count.index)}"
-  route_table_id = "${aws_route_table.public_route_table.id}"
+  route_table_id = "${aws_route_table.public.id}"
 }
-
-# Private Route Table
-resource "aws_route_table" "private_route_table" {
-  vpc_id = "${aws_vpc.QAD-slalom.id}"
-
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = "${aws_nat_gateway.natgw.id}"
-  }
-  tags = {
-    Name="QAD_PRT"
-  }
-}
-
-resource "aws_route_table_association" "private_rt_association" {
-  count = "${length(aws_subnet.private_subnet.*.id)}"
-
+resource "aws_route_table_association" "private" {
+  count          = "${length(var.vpc_cidr_block)}"
   subnet_id      = "${element(aws_subnet.private_subnet.*.id, count.index)}"
-  route_table_id = "${aws_route_table.private_route_table.id}"
+  route_table_id = "${aws_route_table.private.id}"
 }

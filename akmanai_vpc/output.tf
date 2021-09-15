@@ -1,5 +1,5 @@
 output "vpc_id" {
-  value = "${aws_vpc.QAD-slalom.id}"
+  value = "${aws_vpc.client-vpc.id}"
 }
 output "aws_private_subnet1" {
   value = "${aws_subnet.private_subnet[1].id}"
