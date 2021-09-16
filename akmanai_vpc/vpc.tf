@@ -1,3 +1,8 @@
+locals {
+  private_subnets = [cidrsubnet(var.vpc_cidr_block, 3,0), cidrsubnet(var.vpc_cidr_block, 3,2), cidrsubnet(var.vpc_cidr_block, 3,4)]
+  public_subnets = [cidrsubnet(var.vpc_cidr_block, 3,1), cidrsubnet(var.vpc_cidr_block, 3,3), cidrsubnet(var.vpc_cidr_block, 3,5)]
+}
+
 /*==== The VPC ======*/
 resource "aws_vpc" "client-vpc" {
   cidr_block           = "${var.vpc_cidr_block}"
@@ -36,7 +41,7 @@ resource "aws_nat_gateway" "nat" {
 resource "aws_subnet" "public_subnet" {
   vpc_id                  = "${aws_vpc.client-vpc.id}"
   count                   = "${length(var.availability_zones)}"
-  cidr_block              = "${cidrsubnet(var.vpc_cidr_block, 3, count.index)}"
+  cidr_block              = "${local.public_subnets[count.index]}"#+local.subnet_netnum_factor.public)}"
   availability_zone       = "${element(var.availability_zones,   count.index)}"
   map_public_ip_on_launch = true
   tags = {
@@ -48,7 +53,7 @@ resource "aws_subnet" "public_subnet" {
 resource "aws_subnet" "private_subnet" {
   vpc_id                  = "${aws_vpc.client-vpc.id}"
   count                   = "${length(var.availability_zones)}"
-  cidr_block              = "${cidrsubnet(var.vpc_cidr_block, 3, count.index +3)}"
+  cidr_block              = "${local.private_subnets[count.index]}"#local.subnet_netnum_factor.private)}"
   availability_zone       = "${element(var.availability_zones,   count.index)}"
   map_public_ip_on_launch = false
   tags = {
