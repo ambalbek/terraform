@@ -98,3 +98,63 @@ resource "aws_route_table_association" "private" {
   subnet_id      = "${element(aws_subnet.private_subnet.*.id, count.index)}"
   route_table_id = "${aws_route_table.private.id}"
 }
+
+##############################################################
+#Transit GATEWAY
+#######################################################################
+
+
+# resource "aws_ec2_transit_gateway" "client_vpc-tgw" {
+#   description                     = "client_vpc-transit-gateway"
+#   amazon_side_asn                 = 64512 
+# /*   Amazon side ASN: Autonomous System Number (ASN) of your Transit Gateway.
+#    You can use an  existing ASN assigned to your network. If you don't have one,
+#     you can  use a private ASN in the 64512-65534 or 4200000000-4294967294 range. */
+#   auto_accept_shared_attachments  = "disable"
+# /*   * Auto accept shared attachments: Automatically accept cross account
+#    attachments that are attached to this Transit Gateway.In case if you
+#     are planning to spread your TGW across multiple account. */
+#   default_route_table_association = "enable"
+# /*   * Default route table association: Automatically associate 
+#   Transit Gateway attachments with this Transit Gateway's default route table. */
+#   default_route_table_propagation = "enable"
+#   /* * Default route table propagation: Automatically propagate Transit Gateway
+#    attachments with this Transit Gateway's default route table */
+#   dns_support                     = "enable"
+# /*   * DNS Support: Enable Domain Name System resolution for VPCs attached to
+#    this Transit Gateway(If you have multiple VPC, this will enable hostname
+#     resolution between two VPC) */
+#   vpn_ecmp_support                = "enable"
+# /*   *VPN ECMP support: Equal-cost multi-path routing for VPN Connections that are
+#    attached to this Transit Gateway.Equal Cost Multipath (ECMP) routing support 
+#    between VPN connections. If connections advertise the same CIDRs, the traffic
+#     is distributed equally between them. */
+#   tags {
+#     Name = "client_vpc-transit-gateway"
+#   }
+# }
+
+# resource "aws_ec2_transit_gateway_vpc_attachment" "client_vpc-transit-gateway-attachment" {
+#   transit_gateway_id = "${aws_ec2_transit_gateway.client_vpc-tgw.id}"
+#   vpc_id             = "${var.vpc_id}"
+#   dns_support        = "enable"
+
+#   subnet_ids = "${element(aws_subnet.private_subnet.*.id, count.index)}"
+
+#   tags =  {
+#     Name = "client_vpc-tgw-vpc-attachment"
+#   }
+# }
+
+# ##############################################################
+# # AWS egress_only_internet_gateway
+# #######################################################################
+
+
+# resource "aws_egress_only_internet_gateway" "client_vpc-egress_only_internet_gateway" {
+#   vpc_id = "${var.vpc_id}"
+
+#   tags = {
+#     Name = "client_vpc-egress_only_internet_gateway"
+#   }
+# }
